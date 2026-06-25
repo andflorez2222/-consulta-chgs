@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Consulta de Cambios · NOC</title>
+<style>
+  :root{
+    --bg:#0a0e14;
+    --panel:#10161f;
+    --panel-2:#161e2a;
+    --line:#1f2a38;
+    --line-soft:#19222e;
+    --txt:#e6edf3;
+    --txt-dim:#7d8da0;
+    --txt-faint:#4a5a6e;
+    --accent:#36d399;
+    --accent-dim:#1c7a5a;
+    --amber:#f0b429;
+    --red:#f0506e;
+    --blue:#3b82f6;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+    --sans:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--txt);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---- top bar ---- */
+  .topbar{
+    display:flex;align-items:center;gap:14px;
+    padding:14px 22px;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+  }
+  .logo{
+    display:flex;align-items:center;gap:11px;
+  }
+  .logo .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 0 3px rgba(54,211,153,.15);
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .logo h1{
+    font-size:14px;font-weight:600;letter-spacing:.04em;
+  }
+  .logo .sub{
+    font-family:var(--mono);font-size:11px;color:var(--txt-faint);
+    letter-spacing:.08em;text-transform:uppercase;
+  }
+  .meta{
+    margin-left:auto;display:flex;align-items:center;gap:18px;
+    font-family:var(--mono);font-size:11px;color:var(--txt-dim);
+  }
+  .meta .live{display:flex;align-items:center;gap:6px}
+  .meta .live::before{
+    content:"";width:6px;height:6px;border-radius:50%;
+    background:var(--accent);box-shadow:0 0 6px var(--accent);
+  }
+  .meta b{color:var(--txt);font-weight:600}
+
+  /* ---- controls ---- */
+  .controls{
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+    padding:14px 22px;
+    background:var(--panel-2);
+    border-bottom:1px solid var(--line);
+    position:sticky;top:51px;z-index:15;
+  }
+  .field{position:relative;display:flex;align-items:center}
+  .field svg{position:absolute;left:11px;width:15px;height:15px;stroke:var(--txt-faint);pointer-events:none}
+  #q{
+    background:var(--bg);border:1px solid var(--line);
+    color:var(--txt);border-radius:7px;
+    padding:9px 12px 9px 34px;font-size:13px;
+    width:300px;font-family:var(--sans);
+    transition:border-color .15s,box-shadow .15s;
+  }
+  #q:focus{outline:none;border-color:var(--accent-dim);box-shadow:0 0 0 3px rgba(54,211,153,.1)}
+  #q::placeholder{color:var(--txt-faint)}
+  select{
+    background:var(--bg);border:1px solid var(--line);
+    color:var(--txt);border-radius:7px;
+    padding:9px 30px 9px 12px;font-size:13px;
+    font-family:var(--sans);cursor:pointer;
+    appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%237d8da0' stroke-width='2'><path d='M2 4l4 4 4-4'/></svg>");
+    background-repeat:no-repeat;background-position:right 11px center;
+    transition:border-color .15s;
+  }
+  select:focus{outline:none;border-color:var(--accent-dim)}
+  select:hover{border-color:var(--line-soft)}
+  .spacer{flex:1}
+  .stat-pills{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{
+    font-family:var(--mono);font-size:11px;
+    padding:6px 11px;border-radius:6px;
+    background:var(--bg);border:1px solid var(--line);
+    color:var(--txt-dim);display:flex;align-items:center;gap:7px;
+    cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .pill:hover{border-color:var(--line-soft)}
+  .pill.on{border-color:var(--accent-dim);color:var(--txt)}
+  .pill b{color:var(--txt);font-weight:600;font-size:12px}
+  .pill .swatch{width:7px;height:7px;border-radius:50%}
+
+  /* ---- table ---- */
+  .table-wrap{padding:8px 22px 60px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:760px}
+  thead th{
+    text-align:left;
+    font-family:var(--mono);font-size:10.5px;font-weight:600;
+    letter-spacing:.07em;text-transform:uppercase;
+    color:var(--txt-faint);
+    padding:13px 14px 11px;
+    border-bottom:1px solid var(--line);
+    position:sticky;top:108px;background:var(--bg);
+    cursor:pointer;user-select:none;white-space:nowrap;
+  }
+  thead th:hover{color:var(--txt-dim)}
+  thead th .arr{opacity:0;margin-left:5px;font-size:9px}
+  thead th.sorted .arr{opacity:1;color:var(--accent)}
+  tbody td{
+    padding:12px 14px;
+    border-bottom:1px solid var(--line-soft);
+    vertical-align:top;
+  }
+  tbody tr{transition:background .1s}
+  tbody tr:hover{background:var(--panel)}
+  .chg{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--txt);white-space:nowrap}
+  .chg-new{font-family:var(--mono);font-size:11.5px;color:var(--blue)}
+  .muted{color:var(--txt-dim)}
+  .site{font-family:var(--mono);font-size:12px;color:var(--txt)}
+  .wrap-cell{max-width:280px;font-size:12.5px;color:var(--txt-dim);line-height:1.45}
+
+  /* status badge */
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--mono);font-size:11px;font-weight:600;
+    padding:4px 9px;border-radius:5px;white-space:nowrap;
+    letter-spacing:.02em;
+  }
+  .badge .led{width:6px;height:6px;border-radius:50%}
+  .b-ok{background:rgba(54,211,153,.1);color:var(--accent)}
+  .b-ok .led{background:var(--accent);box-shadow:0 0 5px var(--accent)}
+  .b-cancel{background:rgba(240,80,110,.1);color:var(--red)}
+  .b-cancel .led{background:var(--red)}
+  .b-pend{background:rgba(240,180,41,.1);color:var(--amber)}
+  .b-pend .led{background:var(--amber);box-shadow:0 0 5px var(--amber)}
+  .b-other{background:rgba(125,141,160,.12);color:var(--txt-dim)}
+  .b-other .led{background:var(--txt-dim)}
+
+  /* states */
+  .state{padding:70px 22px;text-align:center;color:var(--txt-dim)}
+  .state .ico{font-size:30px;margin-bottom:14px;opacity:.4}
+  .state h3{font-size:15px;color:var(--txt);font-weight:600;margin-bottom:6px}
+  .state p{font-size:13px;max-width:440px;margin:0 auto;line-height:1.6}
+  .state code{font-family:var(--mono);background:var(--panel);padding:2px 6px;border-radius:4px;color:var(--accent);font-size:12px}
+  .spinner{
+    width:26px;height:26px;border:2.5px solid var(--line);
+    border-top-color:var(--accent);border-radius:50%;
+    margin:0 auto 16px;animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .err{color:var(--red)}
+
+  /* footer */
+  .foot{
+    padding:14px 22px;border-top:1px solid var(--line);
+    font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);
+    display:flex;gap:18px;flex-wrap:wrap;align-items:center;
+  }
+  .foot .reload{
+    margin-left:auto;color:var(--txt-dim);cursor:pointer;
+    display:flex;align-items:center;gap:6px;
+    background:none;border:none;font-family:var(--mono);font-size:10.5px;
+    transition:color .15s;
+  }
+  .foot .reload:hover{color:var(--accent)}
+
+  @media(max-width:640px){
+    #q{width:100%}
+    .field{flex:1 1 100%}
+    .controls{top:51px}
+    thead th{top:108px}
+    .meta .sep{display:none}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="logo">
+      <span class="dot"></span>
+      <div>
+        <h1>Consulta de Cambios</h1>
+        <div class="sub">NOC · IPRAN Operations</div>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="live">EN VIVO</span>
+      <span class="sep">·</span>
+      <span>Registros <b id="m-total">—</b></span>
+      <span class="sep">·</span>
+      <span>Act. <b id="m-time">—</b></span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="q" placeholder="Buscar CHG, sitio, proyecto, ejecutor…" autocomplete="off">
+    </div>
+    <select id="f-proy"><option value="">Todos los proyectos</option></select>
+    <select id="f-ejec"><option value="">Todos los ejecutores</option></select>
+    <div class="spacer"></div>
+    <div class="stat-pills" id="pills"></div>
+  </div>
+
+  <div id="content">
+    <div class="state">
+      <div class="spinner"></div>
+      <h3>Cargando cambios…</h3>
+      <p>Obteniendo datos del origen.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>Origen: <span id="src-label">CSV remoto</span></span>
+    <span>·</span>
+    <span>Solo lectura</span>
+    <button class="reload" id="reload" title="Volver a cargar">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      Actualizar
+    </button>
+  </div>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN  —  pega aquí el link del CSV que genera
+   Power Automate (raw.githubusercontent o el destino público).
+   ============================================================ */
+const CSV_URL = "PEGA_AQUI_TU_LINK_CSV";
+
+/* Nombres de columnas tal como están en tu Excel.
+   Si cambias un encabezado en el Excel, ajústalo aquí. */
+const COLS = {
+  sitio:    "SITIO",
+  chgIni:   "CHG inicial",
+  chgNew:   "CAMBIO NUEVO",
+  fecha:    "FECHA MAXIMA DE EJECUCION",
+  ejecutor: "EJECUTOR",
+  item:     "ITEM DE FACTURACION",
+  proyecto: "PROYECTO",
+  estado:   "ESTADO",
+  obs:      "OBSERVACION CANCELADO EN EJECUCIÓN / CANCELADO"
+};
+
+let RAW = [], VIEW = [], sortKey = "", sortAsc = true, activeStatus = "";
+
+/* ---------- CSV parser (maneja comillas, comas, saltos) ---------- */
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], n=text[i+1];
+    if(q){
+      if(c==='"'&&n==='"'){cell+='"';i++;}
+      else if(c==='"'){q=false;}
+      else cell+=c;
+    }else{
+      if(c==='"')q=true;
+      else if(c===','){row.push(cell);cell="";}
+      else if(c==='\r'){}
+      else if(c==='\n'){row.push(cell);rows.push(row);row=[];cell="";}
+      else cell+=c;
+    }
+  }
+  if(cell!==""||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(r=>r.length>1||(r.length===1&&r[0].trim()!==""));
+}
+
+function norm(s){return String(s||"").trim().toUpperCase().replace(/\s+/g," ");}
+
+function classifyStatus(e){
+  const t=norm(e);
+  if(!t) return {cls:"b-other",grp:"otro"};
+  if(t.includes("CANCEL")) return {cls:"b-cancel",grp:"cancelado"};
+  if(/EXITOSO|OK|CERRAD|COMPLET|EJECUTAD|FINALIZ/.test(t)) return {cls:"b-ok",grp:"exitoso"};
+  if(/PEND|AGEND|PROCESO|PROGRAM|EN EJEC/.test(t)) return {cls:"b-pend",grp:"pendiente"};
+  return {cls:"b-other",grp:"otro"};
+}
+
+const STATUS_META = {
+  exitoso:   {label:"Exitosos",   color:"#36d399"},
+  pendiente: {label:"Pendientes", color:"#f0b429"},
+  cancelado: {label:"Cancelados", color:"#f0506e"},
+  otro:      {label:"Otros",      color:"#7d8da0"}
+};
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ---------- load ---------- */
+async function load(){
+  const content=document.getElementById("content");
+  if(CSV_URL==="PEGA_AQUI_TU_LINK_CSV"){
+    content.innerHTML=`<div class="state">
+      <div class="ico">⚙️</div>
+      <h3>Falta configurar el origen</h3>
+      <p>Abre este archivo y reemplaza <code>PEGA_AQUI_TU_LINK_CSV</code> por el link del CSV que genera tu flujo de Power Automate.</p>
+    </div>`;
+    return;
+  }
+  try{
+    const url=CSV_URL+(CSV_URL.includes("?")?"&":"?")+"_t="+Date.now();
+    const res=await fetch(url,{cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const text=await res.text();
+    const rows=parseCSV(text);
+    if(rows.length<2) throw new Error("vacío");
+    const headers=rows.shift().map(h=>h.trim());
+    const idx={};
+    for(const k in COLS){
+      idx[k]=headers.findIndex(h=>norm(h)===norm(COLS[k]));
+    }
+    RAW=rows.map(r=>{
+      const o={};
+      for(const k in idx){o[k]=idx[k]>-1?(r[idx[k]]||"").trim():"";}
+      o._st=classifyStatus(o.estado);
+      return o;
+    }).filter(o=>o.chgIni||o.sitio);
+    buildFilters();
+    document.getElementById("m-total").textContent=RAW.length;
+    document.getElementById("m-time").textContent=new Date().toLocaleString("es-CO",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+    render();
+  }catch(e){
+    content.innerHTML=`<div class="state">
+      <div class="ico err">⚠</div>
+      <h3 class="err">No se pudo cargar el origen</h3>
+      <p>Verifica que el link del CSV sea público y correcto.<br><code>${esc(e.message)}</code></p>
+    </div>`;
+  }
+}
+
+function buildFilters(){
+  const proy=[...new Set(RAW.map(r=>r.proyecto).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const ejec=[...new Set(RAW.map(r=>r.ejecutor).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  fillSelect("f-proy",proy);
+  fillSelect("f-ejec",ejec);
+
+  const counts={exitoso:0,pendiente:0,cancelado:0,otro:0};
+  RAW.forEach(r=>counts[r._st.grp]++);
+  const pills=document.getElementById("pills");
+  pills.innerHTML="";
+  ["exitoso","pendiente","cancelado","otro"].forEach(g=>{
+    if(!counts[g])return;
+    const m=STATUS_META[g];
+    const el=document.createElement("button");
+    el.className="pill"+(activeStatus===g?" on":"");
+    el.innerHTML=`<span class="swatch" style="background:${m.color}"></span>${m.label} <b>${counts[g]}</b>`;
+    el.onclick=()=>{activeStatus=activeStatus===g?"":g;buildFilters();render();};
+    pills.appendChild(el);
+  });
+}
+
+function fillSelect(id,arr){
+  const s=document.getElementById(id);
+  const cur=s.value;
+  const first=s.querySelector("option");
+  s.innerHTML="";s.appendChild(first);
+  arr.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;s.appendChild(o);});
+  s.value=cur;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const q=norm(document.getElementById("q").value);
+  const fp=document.getElementById("f-proy").value;
+  const fe=document.getElementById("f-ejec").value;
+
+  VIEW=RAW.filter(r=>{
+    if(fp&&r.proyecto!==fp)return false;
+    if(fe&&r.ejecutor!==fe)return false;
+    if(activeStatus&&r._st.grp!==activeStatus)return false;
+    if(q){
+      const hay=norm([r.sitio,r.chgIni,r.chgNew,r.item,r.proyecto,r.estado,r.ejecutor,r.obs].join(" "));
+      if(!hay.includes(q))return false;
+    }
+    return true;
+  });
+
+  if(sortKey){
+    VIEW.sort((a,b)=>{
+      const x=String(a[sortKey]||""),y=String(b[sortKey]||"");
+      return sortAsc?x.localeCompare(y,"es",{numeric:true}):y.localeCompare(x,"es",{numeric:true});
+    });
+  }
+
+  const content=document.getElementById("content");
+  if(!VIEW.length){
+    content.innerHTML=`<div class="state">
+      <div class="ico">🔍</div>
+      <h3>Sin resultados</h3>
+      <p>Ningún cambio coincide con la búsqueda o los filtros aplicados.</p>
+    </div>`;
+    return;
+  }
+
+  const head=`<thead><tr>
+    ${th("sitio","Sitio")}
+    ${th("chgIni","CHG Inicial")}
+    ${th("chgNew","Cambio Nuevo")}
+    ${th("item","Ítem Facturación")}
+    ${th("proyecto","Proyecto")}
+    ${th("estado","Estado")}
+    ${th("fecha","Fecha Máx.")}
+    ${th("ejecutor","Ejecutor")}
+  </tr></thead>`;
+
+  const body=VIEW.map(r=>{
+    const cancelObs=r._st.grp==="cancelado"&&r.obs
+      ? `<div class="wrap-cell" style="margin-top:4px;color:var(--red);opacity:.8">${esc(r.obs)}</div>`:"";
+    return `<tr>
+      <td><span class="site">${esc(r.sitio)||"—"}</span></td>
+      <td><span class="chg">${esc(r.chgIni)||"—"}</span></td>
+      <td>${r.chgNew?`<span class="chg-new">${esc(r.chgNew)}</span>`:'<span class="muted">—</span>'}</td>
+      <td><span class="wrap-cell">${esc(r.item)||"—"}</span></td>
+      <td><span class="muted">${esc(r.proyecto)||"—"}</span></td>
+      <td><span class="badge ${r._st.cls}"><span class="led"></span>${esc(r.estado)||"—"}</span>${cancelObs}</td>
+      <td><span class="muted" style="font-family:var(--mono);font-size:12px">${esc(r.fecha)||"—"}</span></td>
+      <td><span class="muted">${esc(r.ejecutor)||"—"}</span></td>
+    </tr>`;
+  }).join("");
+
+  content.innerHTML=`<div class="table-wrap"><table>${head}<tbody>${body}</tbody></table></div>`;
+  attachSort();
+}
+
+function th(key,label){
+  const on=sortKey===key;
+  const arr=on?(sortAsc?"▲":"▼"):"";
+  return `<th data-k="${key}" class="${on?'sorted':''}">${label}<span class="arr">${arr}</span></th>`;
+}
+function attachSort(){
+  document.querySelectorAll("th[data-k]").forEach(th=>{
+    th.onclick=()=>{
+      const k=th.dataset.k;
+      if(sortKey===k)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true;}
+      render();
+    };
+  });
+}
+
+/* ---------- events ---------- */
+let t;
+document.getElementById("q").addEventListener("input",()=>{clearTimeout(t);t=setTimeout(render,120);});
+document.getElementById("f-proy").addEventListener("change",render);
+document.getElementById("f-ejec").addEventListener("change",render);
+document.getElementById("reload").addEventListener("click",load);
+
+load();
+/* auto-refresh cada 5 min para reflejar cambios del Excel sin recargar la página */
+setInterval(load,5*60*1000);
+</script>
+</body>
+</html>
